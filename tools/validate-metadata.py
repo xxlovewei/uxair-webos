@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 APP = json.loads((ROOT / 'packaging/appinfo.json').read_text())
 EXPECTED_ID = 'com.github.depius.uxair'
 EXPECTED_NAME = 'UxAir'
-EXPECTED_DESCRIPTION = 'AirPlay Receiver for webOS'
+EXPECTED_DESCRIPTION = '适用于 webOS 的 AirPlay 接收器'
 
 def fail(message):
     print(f'FAIL: {message}', file=sys.stderr)
@@ -79,8 +79,8 @@ def main():
     if APP['main'] != 'uxair':
         fail('unexpected executable name')
     version = APP['version']
-    if version != '1.2.0' or not re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
-        fail('release version must be 1.2.0 SemVer')
+    if not re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
+        fail('release version must use SemVer')
     changelog = (ROOT / 'CHANGELOG.md').read_text()
     if f'## [{version}]' not in changelog:
         fail('CHANGELOG does not contain the current version')
@@ -91,8 +91,9 @@ def main():
     text = '\n'.join(p.read_text() for p in tracked_sources)
     if 'org.webosbrew.uxplaylg' in text or 'UxPlay LG' in text:
         fail('legacy identity remains in application source')
-    if any(text not in (ROOT / 'src/main.cpp').read_text(encoding='utf-8') for text in ('Matej Skuhala (@depius)', 'Based on UxPlay by FDH2; uxplay-webOS by @danlflh')):
-        fail('About page must identify the UxAir developer and preserve both upstream credits')
+    about = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
+    if any(credit not in about for credit in ('韦同学（@Wilson）', 'Matej Skuhala（@depius）', 'UxPlay（FDH2）', 'uxplay-webOS（@danlflh）')):
+        fail('About page must identify the developer and preserve upstream credits')
     for size, path in [(80, ROOT / 'packaging/icon.png'), (130, ROOT / 'packaging/largeIcon.png'), (256, ROOT / 'assets/uxair-icon-256.png'), (512, ROOT / 'assets/uxair-icon-512.png')]:
         if not path.is_file():
             fail(f'missing {size}px UxAir icon asset')

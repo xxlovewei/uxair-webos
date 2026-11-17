@@ -11,20 +11,20 @@ enum class MediaOpenFailure {
 
 inline const char *media_open_failure_message(MediaOpenFailure failure) {
     switch (failure) {
-    case MediaOpenFailure::InvalidConfiguration: return "Video playback could not start (invalid media configuration).";
+    case MediaOpenFailure::InvalidConfiguration: return "无法启动视频播放（媒体配置无效）。";
 #if defined(UXAIR_MEDIA_NDL)
-    case MediaOpenFailure::AcbCreate: return "Video playback could not start (video window creation failed).";
+    case MediaOpenFailure::AcbCreate: return "无法启动视频播放（视频窗口创建失败）。";
 #else
-    case MediaOpenFailure::AcbCreate: return "Video playback could not start (ACB creation failed).";
+    case MediaOpenFailure::AcbCreate: return "无法启动视频播放（ACB 创建失败）。";
 #endif
-    case MediaOpenFailure::AcbInitialize: return "Video playback could not start (ACB initialization failed).";
-    case MediaOpenFailure::MediaIdRegistration: return "Video playback could not start (ACB media registration failed).";
+    case MediaOpenFailure::AcbInitialize: return "无法启动视频播放（ACB 初始化失败）。";
+    case MediaOpenFailure::MediaIdRegistration: return "无法启动视频播放（ACB 媒体注册失败）。";
 #if defined(UXAIR_MEDIA_NDL)
-    case MediaOpenFailure::StarfishLoad: return "Video playback could not start (NDL Load failed).";
+    case MediaOpenFailure::StarfishLoad: return "无法启动视频播放（NDL 加载失败）。";
 #else
-    case MediaOpenFailure::StarfishLoad: return "Video playback could not start (Starfish Load failed).";
+    case MediaOpenFailure::StarfishLoad: return "无法启动视频播放（Starfish 加载失败）。";
 #endif
     case MediaOpenFailure::None: break;
     }
-    return "Video playback could not start.";
+    return "无法启动视频播放。";
 }

@@ -39,17 +39,24 @@ static std::string fmt(const char *format,double value) {
 static std::string duration_text(uint64_t milliseconds) {
     uint64_t seconds=milliseconds/1000;
     char text[80];
-    if(seconds<3600)snprintf(text,sizeof(text),"%llum %02llus",(unsigned long long)(seconds/60),(unsigned long long)(seconds%60));
-    else snprintf(text,sizeof(text),"%lluh %02llum",(unsigned long long)(seconds/3600),(unsigned long long)((seconds/60)%60));
+    if(seconds<3600)snprintf(text,sizeof(text),"%llu 分 %02llu 秒",(unsigned long long)(seconds/60),(unsigned long long)(seconds%60));
+    else snprintf(text,sizeof(text),"%llu 小时 %02llu 分",(unsigned long long)(seconds/3600),(unsigned long long)((seconds/60)%60));
     return text;
 }
 static const char *audio_codec_name(unsigned code) {
-    switch(code) {case 1:return "PCM";case 2:return "ALAC";case 4:return "AAC-LC";case 8:return "AAC-ELD";default:return "Unknown";}
+    switch(code) {case 1:return "PCM";case 2:return "ALAC";case 4:return "AAC-LC";case 8:return "AAC-ELD";default:return "未知";}
+}
+static const char *diagnostics_label(DiagnosticsMode mode) {
+    switch(mode) {
+        case DiagnosticsMode::Compact:return "简洁";
+        case DiagnosticsMode::Detailed:return "详细";
+        default:return "关闭";
+    }
 }
 static std::string utc_text(uint64_t epoch) {
-    if(!epoch)return "Never";
+    if(!epoch)return "无记录";
     time_t stamp=time_t(epoch);tm value;
-    if(!gmtime_r(&stamp,&value))return "Unknown";
+    if(!gmtime_r(&stamp,&value))return "未知";
     char text[48];strftime(text,sizeof(text),"%Y-%m-%d %H:%M UTC",&value);return text;
 }
 
@@ -68,9 +75,9 @@ static const int64_t kMaxHoldNs=0;
 int main(int argc,char **argv) {
     umask(0077);if(!start_log("uxair.log"))return 1;
     Shell shell;if(!shell.open())return 1;
-    shell.screen("Starting AirPlay receiver","");
+    shell.screen("正在启动 AirPlay 接收器","");
     const std::string state_dir=data_directory()+"/state";
-    std::string build_commit="Unknown",build_version="Unknown";
+    std::string build_commit="未知",build_version="未知";
     {
         std::ifstream build_info((app_directory()+"/build-info.txt").c_str());
         std::string line;
@@ -104,11 +111,11 @@ int main(int argc,char **argv) {
             receiver_started=receiver.start(state_dir,settings);
             if(receiver_started) {
                 fprintf(stderr,"[settings] startup fallback active for this run; saved preference retained\n");
-                receiver.show("Quality startup failed. H.264 720p active for this run; saved preference retained.");
+                receiver.show("画质配置启动失败，本次使用 H.264 720p，已保存的设置仍有效。");
             } else receiver.stop();
         }
         if(!receiver_started) {
-            shell.screen("Could not start. See uxair.log","");
+            shell.screen("启动失败，请查看 uxair.log","");
             while(shell.pump())SDL_Delay(50);
             return 1;
         }
@@ -266,11 +273,11 @@ int main(int argc,char **argv) {
             set_mirror_fps(settings,30);
             if(activate_profile(settings)) {
                 fprintf(stderr,"[settings] HEVC fallback is session-only; saved preference retained\n");
-                receiver.show(starfish_load_failure?"Starfish Load failed. H.264 720p active; reconnect sender.":"HEVC failed. H.264 720p active; reconnect sender.");
+                receiver.show(starfish_load_failure?"Starfish 加载失败，已切换至 H.264 720p，请重新连接。":"HEVC 播放失败，已切换至 H.264 720p，请重新连接。");
             } else {
                 settings=previous;
                 bool restored=activate_profile(previous);
-                receiver.show(restored?"HEVC fallback failed; previous profile restored.":"HEVC fallback failed. Restart app.");
+                receiver.show(restored?"HEVC 回退失败，已恢复原配置。":"HEVC 回退失败，请重启应用。");
             }
             return;
         }
@@ -279,29 +286,29 @@ int main(int argc,char **argv) {
             set_mirror_fps(settings,30);
             if(activate_profile(settings)) {
                 fprintf(stderr,"[settings] decoder recovery lowered advertised max FPS to 30 for this run; saved preference retained\n");
-                receiver.show(starfish_load_failure?"Starfish Load failed. Restored 30 FPS; reconnect sender.":"60 FPS failed. Restored 30 FPS; reconnect sender.");
+                receiver.show(starfish_load_failure?"Starfish 加载失败，已恢复至 30 FPS，请重新连接。":"60 FPS 播放失败，已恢复至 30 FPS，请重新连接。");
             } else {
                 settings=previous;
                 bool restored=activate_profile(previous);
-                receiver.show(restored?"30 FPS recovery failed; previous profile restored.":"FPS recovery failed. Restart app.");
+                receiver.show(restored?"恢复 30 FPS 失败，已恢复原配置。":"帧率恢复失败，请重启应用。");
             }
             return;
         }
         if(settings.width!=1920) {
-            receiver.show(starfish_load_failure?"Starfish Load failed. Adjust Settings or reconnect.":"TV decoder failed. Connect again.");return;
+            receiver.show(starfish_load_failure?"Starfish 加载失败，请调整设置或重新连接。":"电视解码失败，请重新连接。");return;
         }
         ProfileSwitchResult result=switch_mirror_profile(settings,1280,720,activate_profile);
         if(result==ProfileSwitchResult::Applied) {
             fprintf(stderr,"[settings] 720p recovery is session-only; saved preference retained\n");
-            receiver.show(starfish_load_failure?"Starfish Load failed. Restored 720p; reconnect sender.":"1080p decoder failed. Restored 720p; reconnect sender.");
+            receiver.show(starfish_load_failure?"Starfish 加载失败，已恢复至 720p，请重新连接。":"1080p 解码失败，已恢复至 720p，请重新连接。");
             fprintf(stderr,"[settings] 1080p decoder failed; restored 720p advertisement\n");
-        } else receiver.show(starfish_load_failure?"Starfish Load failed. Adjust Settings or reconnect.":"Decoder failed. Restart app and select 720p.");
+        } else receiver.show(starfish_load_failure?"Starfish 加载失败，请调整设置或重新连接。":"解码失败，请重启应用并选择 720p。");
     };
     auto report_media_start_failure=[&](bool failed_hevc,const char *reason){
         const MediaOpenFailure failure=media.open_failure();
         finish(true);
         recover_decoder(failed_hevc,reason);
-        receiver.show(std::string(media_open_failure_message(failure))+" Settings remain available; reconnect to retry.");
+        receiver.show(std::string(media_open_failure_message(failure))+" 可调整设置并重新连接。");
     };
     auto flush_audio=[&](){
         decoder.reset();
@@ -320,54 +327,54 @@ int main(int argc,char **argv) {
         finish(true);
         if(audio_only) {
             fprintf(stderr,"[audio-only] playback failed reason=%s; video profile left unchanged\n",reason);
-            receiver.show("Audio-only playback stopped. Reconnect; mirroring settings were preserved.");
+            receiver.show("音乐播放已停止，请重新连接。投屏设置已保留。");
         } else recover_decoder(failed_hevc,reason);
     };
     auto rows_for=[&](UiPage which)->std::vector<UiRow> {
         std::vector<UiRow> rows;
         if(which==UiPage::Mirroring) {
-            rows.push_back(UiRow("Resolution",settings.width==3840?"4K":settings.width==1920?"1080p":"720p","H.264: up to 1080p; HEVC: up to 4K. Frame rate is configured separately.",receiver.idle_for_profile_change()));
-            rows.push_back(UiRow("Video codec",settings.codec==MirrorCodec::ExperimentalHevc?"H.265 (HEVC)":"H.264","Choose the video format. H.265 enables 4K.",receiver.idle_for_profile_change()));
-            rows.push_back(UiRow("Maximum frame rate",std::to_string(settings.max_fps)+" FPS",settings.max_fps==60?"Advertised maximum; the sender may choose less":"30 FPS maximum",receiver.idle_for_profile_change()));
+            rows.push_back(UiRow("分辨率",settings.width==3840?"4K":settings.width==1920?"1080p":"720p","H.264 最高支持 1080p，HEVC 最高支持 4K。帧率可单独设置。",receiver.idle_for_profile_change()));
+            rows.push_back(UiRow("视频编码",settings.codec==MirrorCodec::ExperimentalHevc?"H.265 (HEVC)":"H.264","选择视频编码。H.265 支持 4K。",receiver.idle_for_profile_change()));
+            rows.push_back(UiRow("最高帧率",std::to_string(settings.max_fps)+" FPS",settings.max_fps==60?"发送设备可选择低于 60 FPS 的帧率":"最高 30 FPS",receiver.idle_for_profile_change()));
 
         } else if(which==UiPage::Media) {
-            rows.push_back(UiRow("Audio delay",std::to_string(receiver.audio_delay_ms.load())+" ms","Set before connecting; step size 25 ms",receiver.idle_for_profile_change()));
+            rows.push_back(UiRow("音频延迟",std::to_string(receiver.audio_delay_ms.load())+" ms","请在连接前设置，每次调整 25 毫秒",receiver.idle_for_profile_change()));
 
         } else if(which==UiPage::Diagnostics) {
-            rows.push_back(UiRow("On-screen overlay",diagnostics_mode_name(settings.diagnostics),"Off, Compact or Detailed"));
-            std::string resolution=observed_width?std::to_string(observed_width)+" x "+std::to_string(observed_height):"Awaiting SPS";
-            rows.push_back(UiRow("Negotiated codec / SPS",std::string(receiver.incoming_video_codec==2?"HEVC":receiver.incoming_video_codec==1?"H.264":"Awaiting codec")+"  "+resolution,
-                "Receiver limit "+std::to_string(settings.width)+"x"+std::to_string(settings.height)+" / "+std::to_string(settings.max_fps)+" FPS max; iOS selects codec/rate"));
-            rows.push_back(UiRow("Incoming / Feed FPS",fmt("%.1f",live_incoming_fps)+" / "+fmt("%.1f",live_feed_fps),
-                "Measured over 1s; advertised maximum "+std::to_string(settings.max_fps)+" FPS"));
-            rows.push_back(UiRow("Video timing / output",fmt("%.1f",live_pts_fps)+" PTS FPS / unmeasured",
-                "Decoder callbacks/s "+fmt("%.1f",live_decoder_callbacks_fps)+" (not physical display FPS); Starfish "+std::to_string(media.video_info_width.load())+"x"+std::to_string(media.video_info_height.load())+"; ACB "+std::to_string(media.acb_window_width.load())+"x"+std::to_string(media.acb_window_height.load())));
-            rows.push_back(UiRow("Video / audio queue",std::to_string(live_queue.video_queue_packets)+" / "+std::to_string(live_queue.queue_packets-live_queue.video_queue_packets),"Video queue residence "+fmt("%.1f",live_queue_ms)+" ms, last 5s"));
-            rows.push_back(UiRow("Starfish",media.failed?"Error":media.playing?"Playing":media.ready?"Loaded":opened?"Loading":"Idle",
-                "Feed "+std::to_string(media.feed_video_accepted.load())+" accepted / "+std::to_string(media.feed_video_rejected.load())+" rejected; "+fmt("%.1f",live_feed_ms)+" ms avg"));
-            rows.push_back(UiRow("Session / memory",session_started?duration_text(uint64_t(std::max<int64_t>(0,now_ns()-session_started))/1000000):"Idle",
-                (live_rss_kb>=0?fmt("%.1f",live_rss_kb/1024.0)+" MiB RSS":"RSS unavailable")+"; "+std::to_string(usage.successful_sessions)+" sessions; "+
-                (fallback_reason.empty()?"no fallback":"fallback "+fallback_reason)));
-            rows.push_back(UiRow("Incoming audio",receiver.has_audio?audio_codec_name(receiver.last_audio_codec.load()):"Awaiting audio","Negotiated AirPlay audio codec"));
-            rows.push_back(UiRow("PCM output","Stereo 44.1 kHz","Decoded locally and sent to Starfish"));
+            rows.push_back(UiRow("屏幕诊断信息",diagnostics_label(settings.diagnostics),"可关闭或选择简洁、详细模式"));
+            std::string resolution=observed_width?std::to_string(observed_width)+" x "+std::to_string(observed_height):"等待 SPS";
+            rows.push_back(UiRow("实际编码 / SPS",std::string(receiver.incoming_video_codec==2?"HEVC":receiver.incoming_video_codec==1?"H.264":"等待编码")+"  "+resolution,
+                "接收上限 "+std::to_string(settings.width)+"x"+std::to_string(settings.height)+" / "+std::to_string(settings.max_fps)+" FPS，发送设备选择编码和帧率"));
+            rows.push_back(UiRow("接收 / 送解码帧率",fmt("%.1f",live_incoming_fps)+" / "+fmt("%.1f",live_feed_fps),
+                "每秒统计，已声明的帧率上限 "+std::to_string(settings.max_fps)+" FPS"));
+            rows.push_back(UiRow("视频时间戳 / 输出",fmt("%.1f",live_pts_fps)+" PTS FPS / 未测量",
+                "每秒解码回调 "+fmt("%.1f",live_decoder_callbacks_fps)+"（非屏幕实际帧率），Starfish "+std::to_string(media.video_info_width.load())+"x"+std::to_string(media.video_info_height.load())+"; ACB "+std::to_string(media.acb_window_width.load())+"x"+std::to_string(media.acb_window_height.load())));
+            rows.push_back(UiRow("视频 / 音频队列",std::to_string(live_queue.video_queue_packets)+" / "+std::to_string(live_queue.queue_packets-live_queue.video_queue_packets),"视频排队时长 "+fmt("%.1f",live_queue_ms)+" 毫秒（最近 5 秒）"));
+            rows.push_back(UiRow("Starfish",media.failed?"错误":media.playing?"播放中":media.ready?"已加载":opened?"加载中":"空闲",
+                "送解码 "+std::to_string(media.feed_video_accepted.load())+" 次成功 / "+std::to_string(media.feed_video_rejected.load())+" 次拒绝，平均 "+fmt("%.1f",live_feed_ms)+" 毫秒"));
+            rows.push_back(UiRow("会话 / 内存",session_started?duration_text(uint64_t(std::max<int64_t>(0,now_ns()-session_started))/1000000):"空闲",
+                (live_rss_kb>=0?fmt("%.1f",live_rss_kb/1024.0)+" MiB RSS":"暂无内存数据")+"; "+std::to_string(usage.successful_sessions)+" 次会话， "+
+                (fallback_reason.empty()?"无回退":"已回退 "+fallback_reason)));
+            rows.push_back(UiRow("接收音频",receiver.has_audio?audio_codec_name(receiver.last_audio_codec.load()):"等待音频","实际使用的 AirPlay 音频编码"));
+            rows.push_back(UiRow("PCM 输出","44.1 kHz 立体声","在电视上解码后送至 Starfish"));
             const AirPlayAudioIntent audio_intent{receiver.last_audio_codec.load(),receiver.audio_samples_per_frame.load(),receiver.audio_using_screen.load(),receiver.audio_is_media.load(),receiver.has_audio.load()};
-            rows.push_back(UiRow("Audio playback",audio_only_playback?(media.playing?"Standalone playing":"Standalone starting"):
-                standalone_audio_candidate(audio_intent,receiver.mirror.load())?"Standalone ready":"Idle",
-                "Protected or unsupported sessions are not decoded"));
-            rows.push_back(UiRow("Mirroring audio",receiver.mirror?"Active":"Idle","Stereo audio during screen mirroring"));
+            rows.push_back(UiRow("音乐播放",audio_only_playback?(media.playing?"纯音频播放中":"纯音频启动中"):
+                standalone_audio_candidate(audio_intent,receiver.mirror.load())?"纯音频已就绪":"空闲",
+                "仅解码受支持的非受保护会话"));
+            rows.push_back(UiRow("投屏声音",receiver.mirror?"已启用":"空闲","屏幕镜像时播放立体声"));
         } else if(which==UiPage::History) {
             for(const SessionSummary& session:usage.recent) {
-                std::string kind=session.kind==SessionKind::Audio?"AirPlay music":
+                std::string kind=session.kind==SessionKind::Audio?"AirPlay 音乐":
                     std::string(session_kind_name(session.kind))+" - "+(session.codec==2?"HEVC":"H.264")+" - "+
                     std::to_string(session.width)+"x"+std::to_string(session.height);
                 rows.push_back(UiRow(utc_text(session.started_utc),duration_text(session.duration_ms),kind,false));
             }
-            rows.push_back(UiRow("Reset history","Select","Permanently clears saved usage statistics"));
+            rows.push_back(UiRow("清空历史记录","选择","永久删除已保存的使用统计"));
         } else if(which==UiPage::System) {
-            rows.push_back(UiRow("UxAir",build_version,"AirPlay Receiver for webOS",false));
-            rows.push_back(UiRow("Developer","Matej Skuhala (@depius)","Based on UxPlay by FDH2; uxplay-webOS by @danlflh",false));
-            rows.push_back(UiRow("License","GPL-3.0-or-later","See bundled license and third-party notices",false));
-            rows.push_back(UiRow("Enjoying UxAir? Buy me a coffee","","Support development · UxAir is free and open source"));
+            rows.push_back(UiRow("UxAir",build_version,"适用于 webOS 的 AirPlay 接收器",false));
+            rows.push_back(UiRow("开发者","韦同学（@Wilson）","原作者 Matej Skuhala（@depius），基于 UxPlay（FDH2）和 uxplay-webOS（@danlflh）",false));
+            rows.push_back(UiRow("许可证","GPL-3.0-or-later","请查阅随应用附带的许可证和第三方声明",false));
+            rows.push_back(UiRow("请原作者喝杯咖啡","","支持原项目开发 · UxAir 免费且开源"));
         }
         return rows;
     };
@@ -376,28 +383,28 @@ int main(int argc,char **argv) {
         switch(nav.dialog) {
             case UiDialogKind::Resolution:
                 d.current=settings.width==3840?2:settings.width==1920?1:0;
-                d.title="Screen mirroring resolution";d.description="Frame rate is selected separately. Disconnect sender before applying.";
+                d.title="屏幕镜像分辨率";d.description="帧率可单独设置。请先断开发送设备，再更改分辨率。";
                 d.choices={"720p","1080p","4K"};
                 break;
             case UiDialogKind::Codec:
                 d.current=settings.codec==MirrorCodec::ExperimentalHevc?1:0;
-                d.title="Screen mirroring codec";d.description="Choose the video format. H.265 enables 4K.";
+                d.title="屏幕镜像编码";d.description="选择视频编码。H.265 支持 4K。";
                 d.choices={"H.264","H.265 (HEVC)"};break;
             case UiDialogKind::FrameRate:
                 d.current=settings.max_fps==60?1:0;
-                d.title="Maximum mirroring frame rate";d.description="This is an AirPlay limit; the sender may choose a lower rate.";
+                d.title="镜像最高帧率";d.description="这是 AirPlay 的帧率上限，发送设备可选择更低的帧率。";
                 d.choices={"30 FPS","60 FPS"};break;
             case UiDialogKind::Overlay:
                 d.current=int(settings.diagnostics);
-                d.title="Playback diagnostics overlay";d.description="Incoming and feed FPS are not displayed FPS.";
-                d.choices={"Off","Compact","Detailed"};break;
+                d.title="播放诊断浮层";d.description="接收和送解码帧率与屏幕实际帧率可能不同。";
+                d.choices={"关闭","简洁","详细"};break;
             case UiDialogKind::AudioDelay:
                 d.current=(receiver.audio_delay_ms.load()+1000)/25;
-                d.title="Audio delay";d.description="Choose before connecting; 25 ms steps.";
+                d.title="音频延迟";d.description="请在连接前设置，每档 25 毫秒。";
                 for(int ms=-1000;ms<=1000;ms+=25)d.choices.push_back(std::to_string(ms)+" ms");break;
             case UiDialogKind::ResetHistory:
-                d.title="Reset usage history?";d.description="This permanently deletes saved sessions and usage statistics. Pairing and settings will not be affected.";
-                d.choices={"Cancel","Reset history"};break;
+                d.title="清空使用历史？";d.description="此操作会永久删除会话和使用统计，并保留配对及设置。";
+                d.choices={"取消","清空历史记录"};break;
             default:break;
         }
         return d;
@@ -407,6 +414,7 @@ int main(int argc,char **argv) {
         UiDialog d=dialog_for();
         const std::vector<UiRow> rows=rows_for(page);
         if(page==UiPage::History) {
+            // 图表按 UTC 日期统计，跨日或历史文件大小变化时重新生成页面数据。
             const uint32_t today=usage_utc_day(uint64_t(time(nullptr)));
             if(today!=history_day){history_day=today;history_dirty=true;}
             const size_t current_storage=usage_storage_bytes(state_dir+"/usage-v1");
@@ -420,14 +428,14 @@ int main(int argc,char **argv) {
             history_data=UiHistoryData();
             history_data.session_count=usage.recent.size();history_data.empty=usage.recent.empty();
             uint64_t sessions=usage.successful_sessions;
-            history_data.summary=std::to_string(sessions)+" completed";
+            history_data.summary=std::to_string(sessions)+" 次";
             history_data.total_time=duration_text(usage.playback_ms);
-            history_data.average=sessions?duration_text(usage.playback_ms/sessions):"No usage";
+            history_data.average=sessions?duration_text(usage.playback_ms/sessions):"暂无记录";
             history_data.mirror_time=duration_text(thirty.mirror_ms);
             history_data.music_time=duration_text(thirty.audio_ms);
             history_data.mirror_percent=usage_mirror_percent(thirty.mirror_ms,thirty.audio_ms);
             history_data.audio_percent=(thirty.mirror_ms||thirty.audio_ms)?100-history_data.mirror_percent:0;
-            history_data.storage=usage.storage_corrupt?"History file unreadable; reset to restart":"History storage "+std::to_string((history_storage+1023)/1024)+" KB | "+std::to_string(usage.recent.size())+"/100 sessions | 365d";
+            history_data.storage=usage.storage_corrupt?"无法读取历史记录。可清空后重新统计。":"历史占用 "+std::to_string((history_storage+1023)/1024)+" KB | "+std::to_string(usage.recent.size())+"/100 次会话 · 保留 365 天";
             history_data.daily_title=days.title;history_data.monthly_title=months.title;
             history_data.daily_bars=days.bars;history_data.monthly_bars=months.bars;
             history_dirty=false;
@@ -436,58 +444,58 @@ int main(int argc,char **argv) {
                    nav.dialog==UiDialogKind::None?nullptr:&d,pin,donation_open,page==UiPage::History?&history_data:nullptr);
     };
     auto apply_resolution=[&](int target) {
-        if(!receiver.idle_for_profile_change()) {receiver.show("Disconnect sender before changing quality.");return;}
+        if(!receiver.idle_for_profile_change()) {receiver.show("请先断开发送设备，再更改画质。");return;}
         const Settings previous=settings;
         ProfileSwitchResult result=switch_mirror_profile(settings,target,target==3840?2160:target==1920?1080:720,activate_profile);
         if(result==ProfileSwitchResult::Applied) {
             if(save_settings(state_dir+"/settings-v1",settings))
-                receiver.show(std::string(target==3840?"4K HEVC":target==1920?"1080p":"720p")+" selected. Reconnect; check incoming SPS.");
+                receiver.show(std::string(target==3840?"4K HEVC":target==1920?"1080p":"720p")+" 已选中。请重新连接并查看接收到的 SPS。");
             else {
                 fprintf(stderr,"[settings] save failed; restoring previous receiver profile\n");
                 bool restored=activate_profile(previous);settings=previous;
-                receiver.show(restored?"Could not save quality; previous profile restored.":"Quality save and recovery failed. Restart app.");
+                receiver.show(restored?"画质保存失败，已恢复原配置。":"画质保存及恢复失败，请重启应用。");
             }
-        } else if(result==ProfileSwitchResult::Recovered) receiver.show("Quality start failed; previous profile restored.");
-        else if(result==ProfileSwitchResult::Unavailable) receiver.show("Receiver unavailable. Restart app to recover.");
+        } else if(result==ProfileSwitchResult::Recovered) receiver.show("画质配置启动失败，已恢复原配置。");
+        else if(result==ProfileSwitchResult::Unavailable) receiver.show("接收器不可用，请重启应用。");
     };
     auto apply_fps=[&](int fps) {
-        if(!receiver.idle_for_profile_change()) {receiver.show("Disconnect sender before changing frame rate.");return;}
+        if(!receiver.idle_for_profile_change()) {receiver.show("请先断开发送设备，再更改帧率。");return;}
         const Settings previous=settings;
         Settings proposed=settings;
         if(!set_mirror_fps(proposed,fps) || proposed.max_fps==settings.max_fps)return;
         if(!activate_profile(proposed)) {
             bool restored=activate_profile(previous);
-            receiver.show(restored?"Frame-rate start failed; previous setting restored.":"Receiver unavailable. Restart app.");
+            receiver.show(restored?"帧率配置启动失败，已恢复原设置。":"接收器不可用，请重启应用。");
             return;
         }
         if(!save_settings(state_dir+"/settings-v1",proposed)) {
             bool restored=activate_profile(previous);
-            receiver.show(restored?"Frame-rate save failed; previous setting restored.":"Frame-rate save failed. Restart app.");
+            receiver.show(restored?"帧率保存失败，已恢复原设置。":"帧率保存失败，请重启应用。");
             return;
         }
         settings=proposed;
-        receiver.show(fps==60?"60 FPS maximum advertised. Reconnect; sender may choose less.":"30 FPS maximum active. Reconnect sender.");
+        receiver.show(fps==60?"帧率上限已设为 60 FPS。请重新连接，发送设备可选择更低的帧率。":"帧率上限已设为 30 FPS，请重新连接。");
     };
     auto apply_codec=[&](MirrorCodec codec) {
-        if(!receiver.idle_for_profile_change()) {receiver.show("Disconnect sender before changing codec.");return;}
+        if(!receiver.idle_for_profile_change()) {receiver.show("请先断开发送设备，再更改视频编码。");return;}
         const Settings previous=settings;
         Settings proposed=settings;
         if(!set_mirror_codec(proposed,codec) || proposed.codec==settings.codec)return;
         if(!activate_profile(proposed)) {
             bool restored=activate_profile(previous);
-            receiver.show(restored?"Codec start failed; previous profile restored.":"Receiver unavailable. Restart app.");
+            receiver.show(restored?"视频编码配置启动失败，已恢复原配置。":"接收器不可用，请重启应用。");
             return;
         }
         if(!save_settings(state_dir+"/settings-v1",proposed)) {
             bool restored=activate_profile(previous);
-            receiver.show(restored?"Codec save failed; previous profile restored.":"Codec save failed. Restart app.");
+            receiver.show(restored?"视频编码保存失败，已恢复原配置。":"视频编码保存失败，请重启应用。");
             return;
         }
         settings=proposed;
         fallback_reason.clear();
         receiver.show(codec==MirrorCodec::ExperimentalHevc?
-            "HEVC enabled; iOS chooses codec. Check actual codec after reconnect.":
-            "H.264 active. Reconnect sender.");
+            "已启用 HEVC。请重新连接后查看发送设备实际选用的编码。":
+            "已启用 H.264，请重新连接。");
     };
     bool running=true;
     while(running) {
@@ -543,8 +551,8 @@ int main(int argc,char **argv) {
         if(action==Action::Back) {
             if(pairing_input==PairingInputResult::Cancel) {
                 fprintf(stderr,"[pairing] Back requested cancellation; restarting RAOP session\n");
-                if(activate_profile(settings))receiver.show("Pairing cancelled. Ready to connect.");
-                else receiver.show("Pairing cancelled; receiver restart failed. Restart app.");
+                if(activate_profile(settings))receiver.show("已取消配对，可以重新连接。");
+                else receiver.show("已取消配对。接收器启动失败，请重启应用。");
                 pairing_pin=receiver.pin();last_rendered_pin=pairing_pin;last_ui=0;
                 if(opened && !ui_visible)pairing_overlay_dirty=true;
                 action=Action::None;
@@ -579,7 +587,7 @@ int main(int argc,char **argv) {
                 } else if(kind==UiDialogKind::AudioDelay && choice>=0 && choice<=80 && receiver.idle_for_profile_change())
                     receiver.adjust_audio_delay(choice*25-1000-receiver.audio_delay_ms.load());
                 else if(kind==UiDialogKind::ResetHistory && choice==1) {
-                    usage.reset();if(!save_usage_stats(state_dir+"/usage-v1",usage)){fprintf(stderr,"[stats] reset save failed\n");receiver.show("History cleared in memory, but could not save the reset.");}history_storage=usage_storage_bytes(state_dir+"/usage-v1");history_dirty=true;
+                    usage.reset();if(!save_usage_stats(state_dir+"/usage-v1",usage)){fprintf(stderr,"[stats] reset save failed\n");receiver.show("已清空本次历史记录，写入存储失败。");}history_storage=usage_storage_bytes(state_dir+"/usage-v1");history_dirty=true;
                 }
             } else {
                 const std::vector<UiRow> rows=rows_for(page);
@@ -616,7 +624,7 @@ int main(int argc,char **argv) {
         }
         if(receiver.activity && now-receiver.activity>20000000000LL && (opened||receiver.mirror)) {
             fprintf(stderr,"[session] idle timeout\n");
-            finish(true);receiver.show("Connection lost. Connect again.");
+            finish(true);receiver.show("连接已断开，请重新连接。");
         }
         if(receiver.audio_flush.exchange(false))flush_audio();
         if(have_pending && !pending.video && !current_audio_epoch(pending.audio_epoch,receiver.audio_epoch.load())) {
@@ -657,7 +665,7 @@ int main(int argc,char **argv) {
             }
         }
         if(!opened && (page==UiPage::History?(last_ui==0||usage_utc_day(uint64_t(time(nullptr)))!=history_day):now-last_ui>1000000000LL) && (pairing_pin.empty() || pairing_changed)) {
-            draw_page(receiver.status(),"Left/Right sections  •  Up/Down focus  •  OK select  •  Back cancel");
+            draw_page(receiver.status(),"左右切换栏目 · 上下移动焦点 · 确定选择 · 返回取消");
             last_ui=now;
         }
         if(now-last_live>1000000000LL) {
@@ -671,32 +679,32 @@ int main(int argc,char **argv) {
             if(opened && !ui_visible && !audio_only_playback && settings.diagnostics!=DiagnosticsMode::Off && pairing_pin.empty()) {
                     std::vector<std::string> lines;
                     if(audio_only_playback) {
-                        lines.push_back(std::string("AirPlay audio ")+audio_codec_name(receiver.last_audio_codec.load())+"  -  "+(media.playing?"Playing":media.ready?"Loaded":"Loading"));
+                        lines.push_back(std::string("AirPlay 音频 ")+audio_codec_name(receiver.last_audio_codec.load())+"  -  "+(media.playing?"播放中":media.ready?"已加载":"加载中"));
                         if(settings.diagnostics==DiagnosticsMode::Detailed) {
-                            lines.push_back("PCM output stereo 44.1 kHz  audio Feed "+std::to_string(media.feed_audio_accepted.load())+" accepted");
-                            lines.push_back("Audio queue "+std::to_string(live_queue.queue_packets)+" packets  "+fmt("%.1f",live_queue_ms)+" ms");
+                            lines.push_back("PCM 输出 44.1 kHz 立体声 · 音频送解码 "+std::to_string(media.feed_audio_accepted.load())+" 次成功");
+                            lines.push_back("音频队列 "+std::to_string(live_queue.queue_packets)+" 包 · "+fmt("%.1f",live_queue_ms)+" ms");
                         }
                     } else {
-                        lines.push_back(std::string(receiver.incoming_video_codec==2?"HEVC ":receiver.incoming_video_codec==1?"H.264 ":"Video ")+
-                            (observed_width?std::to_string(observed_width)+"x"+std::to_string(observed_height):"awaiting codec")+"  "+fmt("%.1f",live_incoming_fps)+" incoming FPS  "+
-                            (media.playing?"Playing":media.ready?"Loaded":"Loading"));
+                        lines.push_back(std::string(receiver.incoming_video_codec==2?"HEVC ":receiver.incoming_video_codec==1?"H.264 ":"视频 ")+
+                            (observed_width?std::to_string(observed_width)+"x"+std::to_string(observed_height):"等待编码")+"  "+fmt("%.1f",live_incoming_fps)+" FPS 接收 · "+
+                            (media.playing?"播放中":media.ready?"已加载":"加载中"));
                         if(settings.diagnostics==DiagnosticsMode::Detailed) {
-                            lines.push_back("Feed "+fmt("%.1f",live_feed_fps)+" FPS  Decoder callbacks "+fmt("%.1f",live_decoder_callbacks_fps)+"/s (not display FPS)");
-                            lines.push_back("Video queue "+std::to_string(live_queue.video_queue_packets)+"  Drops "+std::to_string(live_queue.dropped_video_frames)+"  Feed rejects "+std::to_string(media.feed_video_rejected.load()));
-                            lines.push_back("PTS "+fmt("%.1f",live_pts_fps)+" FPS  Queue "+fmt("%.1f",live_queue_ms)+" ms  Feed "+fmt("%.1f",live_feed_ms)+" ms");
-                            lines.push_back(std::string("Audio ")+audio_codec_name(receiver.last_audio_codec.load())+" -> PCM stereo 44.1k");
-                            lines.push_back("Starfish "+std::to_string(media.video_info_width.load())+"x"+std::to_string(media.video_info_height.load())+"  ACB "+std::to_string(media.acb_window_width.load())+"x"+std::to_string(media.acb_window_height.load())+"  reinit "+std::to_string(decoder_reinitializations));
+                            lines.push_back("送解码 "+fmt("%.1f",live_feed_fps)+" FPS · 解码回调 "+fmt("%.1f",live_decoder_callbacks_fps)+" 次/秒（非屏幕帧率）");
+                            lines.push_back("视频队列 "+std::to_string(live_queue.video_queue_packets)+" · 丢帧 "+std::to_string(live_queue.dropped_video_frames)+" · 送解码拒绝 "+std::to_string(media.feed_video_rejected.load()));
+                            lines.push_back("PTS "+fmt("%.1f",live_pts_fps)+" FPS · 排队 "+fmt("%.1f",live_queue_ms)+" 毫秒 · 送解码 "+fmt("%.1f",live_feed_ms)+" ms");
+                            lines.push_back(std::string("音频 ")+audio_codec_name(receiver.last_audio_codec.load())+" → PCM 44.1 kHz 立体声");
+                            lines.push_back("Starfish "+std::to_string(media.video_info_width.load())+"x"+std::to_string(media.video_info_height.load())+"  ACB "+std::to_string(media.acb_window_width.load())+"x"+std::to_string(media.acb_window_height.load())+" · 重启解码器 "+std::to_string(decoder_reinitializations));
                         }
                     }
                     if(settings.diagnostics==DiagnosticsMode::Detailed)
-                        lines.push_back("RSS "+(live_rss_kb>=0?fmt("%.1f",live_rss_kb/1024.0)+" MiB":"N/A")+"  Session "+duration_text(uint64_t(std::max<int64_t>(0,now-session_started))/1000000));
+                        lines.push_back("RSS "+(live_rss_kb>=0?fmt("%.1f",live_rss_kb/1024.0)+" MiB":"暂无")+" · 会话 "+duration_text(uint64_t(std::max<int64_t>(0,now-session_started))/1000000));
                     last_overlay_lines=lines;
                     shell.overlay(last_overlay_lines);
                     pairing_overlay_dirty=false;
             }
         }
         if((page==UiPage::History?(opened&&ui_visible&&last_ui==0):session_ui_redraw_due(opened,ui_visible,last_ui,now)) && (pairing_pin.empty() || pairing_changed)) {
-            draw_page("Live session  •  Back returns to playback","Incoming and Feed are receiver rates  •  Displayed FPS unavailable");
+            draw_page("正在投屏 · 按返回键继续观看","接收和送解码帧率由接收器统计 · 屏幕实际帧率暂无数据");
             last_ui=now;
         }
         if(pairing_overlay_dirty && opened && !ui_visible) {
@@ -840,7 +848,7 @@ int main(int argc,char **argv) {
             if(!media_opened) {
                 have_pending=false;audio_only_failed=true;
                 fprintf(stderr,"[audio-only] receiver negotiated audio but Starfish load failed; mirroring remains available\n");
-                receiver.show(std::string(media_open_failure_message(media.open_failure()))+" Audio-only playback stopped; mirroring remains available.");
+                receiver.show(std::string(media_open_failure_message(media.open_failure()))+" 音乐播放已停止，仍可使用屏幕镜像。");
                 continue;
             }
             opened=true;audio_only_playback=true;session_codec=MirrorCodec::H264;
@@ -885,7 +893,7 @@ int main(int argc,char **argv) {
                 hevc_invalid_logged=true;have_pending=false;
                 if(hevc_configuration_wait_expired(hevc_configuration_wait,now)) {
                     fprintf(stderr,"[codec-start] incomplete-configuration timeout; reconnect required; runtime profile retained\n");
-                    finish(true);receiver.show("HEVC headers missing. Reconnect sender; selected profile retained.");
+                    finish(true);receiver.show("缺少 HEVC 配置，请重新连接。已保留所选配置。");
                 }
                 continue;
             }
@@ -910,7 +918,7 @@ int main(int argc,char **argv) {
             if(input_width) {
                 if(!input_fits_mirror_profile(settings,input_width,input_height)) {
                     fprintf(stderr,"[video] sender resolution %dx%d exceeds selected profile %dx%d\n",input_width,input_height,settings.width,settings.height);
-                    finish(true);receiver.show("Sender resolution exceeds selected profile");continue;
+                    finish(true);receiver.show("发送设备的分辨率超出当前配置");continue;
                 }
                 width=observed_width=input_width;height=observed_height=input_height;
             }
@@ -942,10 +950,11 @@ int main(int argc,char **argv) {
                 fprintf(stderr,"[codec-start] load-accepted=1 first-video=validated-keyframe preroll-delay-ms=200 limit=%u-frames/%zu-bytes\n",
                     HevcStartupGate::kMaxPrerollFrames,HevcStartupGate::kMaxPrerollBytes);
             }
-            // The pre-roll starts after synchronous decoder initialization.
-            // Reusing the loop's old `now` would silently consume it in Load().
+            // 从解码器初始化完成后开始计算预缓冲，避免 Load() 的耗时占用缓冲时间。
             opened=true;origin=pending.timestamp;session_started=now_ns();
-            start=schedule_start(pending.arrival_ns,session_started,200000000LL);stall=0;++sessions_started;
+            // HEVC 保留 200 毫秒预缓冲，H.264 缩短到 60 毫秒以降低镜像启动延迟。
+            const int64_t preroll_ns=incoming_hevc?200000000LL:60000000LL;
+            start=schedule_start(pending.arrival_ns,session_started,preroll_ns);stall=0;++sessions_started;
             receiver.diagnostic_generation=sessions_started;receiver.diagnostic_session_open=true;
             decoder_callback_diagnostics.reset();decoder_callback_diagnostics.started();
             if(incoming_hevc)hevc_transport_failures=0;
@@ -970,7 +979,7 @@ int main(int argc,char **argv) {
         int64_t pts=pending.timestamp>=origin ? int64_t(pending.timestamp-origin) : -int64_t(origin-pending.timestamp);
         if(pts<0){have_pending=false;continue;}
         // Large clock discontinuities require a fresh AirPlay session, not an unbounded queue.
-        if(pts>now-start+5000000000LL) {fprintf(stderr,"[session] timestamp discontinuity\n");finish(true);receiver.show("Device clock changed. Connect again.");continue;}
+        if(pts>now-start+5000000000LL) {fprintf(stderr,"[session] timestamp discontinuity\n");finish(true);receiver.show("设备时钟发生变化，请重新连接。");continue;}
         // NDL: a schedule that fell behind (anchored to a keyframe held over a
         // reinit) catches up; audio shares the same start, so it shifts with
         // the picture.
@@ -993,7 +1002,7 @@ int main(int argc,char **argv) {
             bool was_hevc=session_codec==MirrorCodec::ExperimentalHevc;
             finish(true);
             if(was_hevc)recover_decoder(true,"codec-switch");
-            else receiver.show("Codec changed. Reconnect sender.");
+            else receiver.show("视频编码已变化，请重新连接。");
             continue;
         }
         if(pending.video && pending.codec==0) {
@@ -1004,7 +1013,7 @@ int main(int argc,char **argv) {
             if(info.width) {
                 if(!input_fits_mirror_profile(settings,info.width,info.height)) {
                     fprintf(stderr,"[video] sender resolution %dx%d exceeds selected profile %dx%d\n",info.width,info.height,settings.width,settings.height);
-                    finish(true);receiver.show("Sender resolution exceeds selected profile");continue;
+                    finish(true);receiver.show("发送设备的分辨率超出当前配置");continue;
                 }
                 observed_width=info.width;observed_height=info.height;
             }

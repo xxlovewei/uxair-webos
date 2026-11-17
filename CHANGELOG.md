@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1]
+
+- Translate the TV interface into Simplified Chinese and identify 韦同学（@Wilson） as the developer of this build, with upstream credits preserved.
+- Fix the History page crash on webOS 3.4 by using the clipping API provided by the TV's SDL library.
+- Shorten the Starfish H.264 startup pre-roll from 200 ms to 60 ms and retain the 200 ms HEVC pre-roll.
+
 ## [1.2.0]
 
 Starfish is Stable for webOS 3–4. The owner accepted the exact Starfish build at `9af36d1b2e3902bfa26ab349140af394b3b95a3f` on an LG OLED B7 with webOS 3.9. NDL for webOS 5+ is Public Beta / Experimental with no current-build physical validation. The 1.1.0 development series and its [published GitHub release](https://github.com/depius/uxair-webos/releases/tag/v1.1.0) remain part of the project history.

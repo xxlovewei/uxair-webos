@@ -7,7 +7,11 @@ UxAir is a native AirPlay mirroring receiver for compatible rooted LG webOS TVs,
 
 UxAir is officially released and has been tested on an LG OLED B7 (2017) running webOS 3.9. Support for newer webOS versions is available as a public Beta.
 
-## Downloads and compatibility
+## 简体中文版本
+
+[UxAir v1.2.1](https://github.com/xxlovewei/uxair-webos/releases/tag/v1.2.1) 提供适用于 webOS 3–4 的 Starfish 安装包。此版本在 LG 60UH8500-CA（webOS 3.4.3）上完成覆盖安装和历史记录页验证。下载后可使用 `ares-install -d YOUR_TV UxAir-1.2.1-webOS3-4-Starfish.ipk` 安装。
+
+## Upstream downloads and compatibility
 
 | TV software | Choose this package | Support |
 | --- | --- | --- |
@@ -57,7 +61,7 @@ A fresh installation defaults to H.264 at 1920×1080 and 30 FPS. Valid saved pro
 
 ### Download and install
 
-Get UxAir from [GitHub Releases](https://github.com/depius/uxair-webos/releases/latest). Choose the package matching your TV's webOS version and check the downloaded file against the release's `SHA256SUMS`. The commands below show the current package names; for older releases, use the filenames listed in that release.
+For the upstream packages listed above, use [upstream GitHub Releases](https://github.com/depius/uxair-webos/releases/latest). Choose the package matching your TV's webOS version and check the downloaded file against the release's `SHA256SUMS`.
 
 With the webOS CLI and a configured target named `YOUR_TV`, run the install command for your package:
 
@@ -123,7 +127,7 @@ This project builds on the excellent work of:
 - [**uxplay-webOS by Daniel Filho (@danlflh)**](https://github.com/danlflh/uxplay-webos) — the original webOS port.
 - [**ALQU-IT**](https://github.com/depius/uxair-webos/pull/10) — the NDL DirectMedia port and its initial C4 testing.
 
-UxAir extends this foundation with additional features, performance improvements, and a redesigned interface. Development and adaptation: [@depius](https://github.com/depius). This repository is [depius/uxair-webos](https://github.com/depius/uxair-webos) (formerly `uxplay-webos`). UxAir is licensed under [GPL-3.0-or-later](LICENSE); corresponding sources, upstream attribution, and third-party notices are preserved in [THIRD_PARTY.md](THIRD_PARTY.md).
+UxAir extends this foundation with additional features, performance improvements, and a redesigned interface. The upstream [depius/uxair-webos](https://github.com/depius/uxair-webos) project is developed by [@depius](https://github.com/depius). The Simplified Chinese build is maintained by 韦同学（@Wilson） in [xxlovewei/uxair-webos](https://github.com/xxlovewei/uxair-webos). UxAir is licensed under [GPL-3.0-or-later](LICENSE). See [THIRD_PARTY.md](THIRD_PARTY.md) for corresponding sources and third-party notices.
 
 ## Support development
 

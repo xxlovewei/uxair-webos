@@ -110,7 +110,7 @@ bool Receiver::start(const std::string& dir, const Settings& settings) {
     char device_id[18];snprintf(device_id,sizeof(device_id),"%02X:%02X:%02X:%02X:%02X:%02X",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
     int err=0;
     dnssd=dnssd_init(UXAIR_DISPLAY_NAME,strlen(UXAIR_DISPLAY_NAME),reinterpret_cast<char *>(mac),6,1,&err);
-    if(!dnssd || err) { show("AirPlay discovery failed");return false; }
+    if(!dnssd || err) { show("AirPlay 发现服务启动失败");return false; }
     dnssd_set_airplay_features(dnssd,0,int(capabilities.direct_video));dnssd_set_airplay_features(dnssd,4,int(capabilities.hls));
     dnssd_set_airplay_features(dnssd,42,int(capabilities.hevc));dnssd_set_airplay_features(dnssd,27,int(capabilities.legacy_pairing));
     raop_callbacks_t cb={};cb.cls=this;
@@ -175,7 +175,7 @@ bool Receiver::start(const std::string& dir, const Settings& settings) {
         Receiver& r=self(p);std::lock_guard<std::mutex> l(r.mutex);
         *admit=id && !r.ingress.closing && (r.client.empty()||r.client==id);
         fprintf(stderr,"[client] model=%.80s admitted=%d\n",model?model:"unknown",int(*admit));
-        if(*admit) {r.ingress.admit();++r.stream_requests;r.client=id;r.client_name=name?std::string(name).substr(0,80):"";r.message=std::string("Connecting: ")+(name?std::string(name).substr(0,80):"device");r.activity=now_ns();}
+        if(*admit) {r.ingress.admit();++r.stream_requests;r.client=id;r.client_name=name?std::string(name).substr(0,80):"";r.message=std::string("正在连接：")+(name?std::string(name).substr(0,80):"设备");r.activity=now_ns();}
     };
     cb.audio_set_metadata=[](void *p,const void *buffer,int length){
         Receiver& r=self(p);NowPlaying m;
@@ -207,7 +207,7 @@ bool Receiver::start(const std::string& dir, const Settings& settings) {
         Receiver& r=self(p);std::lock_guard<std::mutex> l(r.meta_mutex);
         if(start&&current&&end){r.meta.start=*start;r.meta.current=*current;r.meta.end=*end;r.meta.progress_ns=now_ns();++r.meta.generation;}
     };
-    cb.display_pin=[](void *p,char *pin){Receiver& r=self(p);std::lock_guard<std::mutex> l(r.mutex);r.pairing.update_pin(pin?pin:"");r.message="Enter this code on your Apple device";};
+    cb.display_pin=[](void *p,char *pin){Receiver& r=self(p);std::lock_guard<std::mutex> l(r.mutex);r.pairing.update_pin(pin?pin:"");r.message="请在 Apple 设备上输入此验证码";};
     cb.passwd=[](void *,int *n)->const char *{*n=0;return nullptr;};
     cb.check_register=[](void *p,const char *key)->bool{Receiver& r=self(p);std::lock_guard<std::mutex> l(r.mutex);return valid_key(key)&&r.keys.count(key);};
     cb.register_client=[](void *p,const char *,const char *key,const char *){
@@ -266,7 +266,7 @@ void Receiver::disconnect() {
     audio_using_screen=false;audio_is_media=false;audio_samples_per_frame=audio_format=0;
     {std::lock_guard<std::mutex> l(meta_mutex);const uint64_t g=meta.generation+1,c=meta.cover_generation+1;meta=NowPlaying();meta.generation=g;meta.cover_generation=c;}
     {std::lock_guard<std::mutex> l(mutex);ingress.disconnected();}
-    show("Waiting for a connection");
+    show("等待连接");
 }
 void Receiver::stop() {
     begin_close();

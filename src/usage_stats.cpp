@@ -12,10 +12,10 @@
 #include <unistd.h>
 
 const char *session_kind_name(SessionKind k) {
-    switch(k){case SessionKind::Audio:return "Audio";case SessionKind::Direct:return "Direct";default:return "Mirror";}
+    switch(k){case SessionKind::Audio:return "音频";case SessionKind::Direct:return "直连播放";default:return "屏幕镜像";}
 }
 const char *usage_period_name(UsagePeriod p) {
-    return p==UsagePeriod::Days30?"Last 30 days":p==UsagePeriod::Months12?"Last 12 months":"Last 7 days";
+    return p==UsagePeriod::Days30?"最近 30 天":p==UsagePeriod::Months12?"最近 12 个月":"最近 7 天";
 }
 // Round each of the two tick intervals upward in the chart's displayed unit.
 uint64_t usage_chart_axis(uint64_t maximum) {
@@ -34,7 +34,7 @@ uint64_t usage_chart_axis(uint64_t maximum) {
 }
 std::string usage_axis_label(uint64_t milliseconds,uint64_t unit_ms) {
     if(!unit_ms)unit_ms=milliseconds>=3600000?3600000:milliseconds>=60000?60000:1000;
-    const char *unit=unit_ms==3600000?"h":unit_ms==60000?"min":"s";
+    const char *unit=unit_ms==3600000?"小时":unit_ms==60000?"分钟":"秒";
     char label[48];
     if(milliseconds%unit_ms==0)snprintf(label,sizeof(label),"%llu %s",(unsigned long long)(milliseconds/unit_ms),unit);
     else snprintf(label,sizeof(label),"%.1Lf %s",static_cast<long double>(milliseconds)/unit_ms,unit);
@@ -188,7 +188,8 @@ static bool month_first_day(uint32_t key,uint32_t& day,std::string& label) {
     struct tm v={};v.tm_year=year-1900;v.tm_mon=month-1;v.tm_mday=1;
     time_t t=timegm(&v);if(t<0)return false;day=usage_utc_day(uint64_t(t));
     struct tm normalized={};if(!gmtime_r(&t,&normalized))return false;
-    char b[16];strftime(b,sizeof(b),"%b",&normalized);label=b;return true;
+    // 中文月份只用于显示，统计仍以 UTC 日编号划分月份。
+    label=std::to_string(normalized.tm_mon+1)+"月";return true;
 }
 UsageSummary summarize_usage(const UsageStats& stats,UsagePeriod p,uint32_t today) {
     UsageSummary out;
@@ -199,11 +200,10 @@ UsageSummary summarize_usage(const UsageStats& stats,UsagePeriod p,uint32_t toda
     if(!month_first_day(current,first,unused)||
        !month_first_day(month==12?(year+1)*100+1:current+1,next,unused))return out;
     const int slots=p==UsagePeriod::ThisMonth?int(next-first):monthly?12:p==UsagePeriod::Days30?30:7;
-    static const char *month_names[]={"January","February","March","April","May","June","July","August","September","October","November","December"};
-    if(p==UsagePeriod::ThisMonth)out.title=std::string("This month — ")+month_names[month-1]+" "+std::to_string(year);
-    else if(p==UsagePeriod::ThisYear)out.title="This year — "+std::to_string(year);
+    if(p==UsagePeriod::ThisMonth)out.title="本月 · "+std::to_string(year)+" 年 "+std::to_string(month)+" 月";
+    else if(p==UsagePeriod::ThisYear)out.title="本年 · "+std::to_string(year)+" 年";
     else out.title=usage_period_name(p);
-    // Expired dates remain unavailable even if no session has triggered pruning yet.
+    // 即使尚未由新会话触发清理，超出 365 天保留期的日期也显示为无记录。
     const uint32_t coverage=stats.daily_from_day?std::max(stats.daily_from_day,today>=364?today-364:0):0;
     std::vector<uint32_t> starts(size_t(slots),0),ends(size_t(slots),0);
     out.bars.resize(size_t(slots));
@@ -219,8 +219,9 @@ UsageSummary summarize_usage(const UsageStats& stats,UsagePeriod p,uint32_t toda
         } else {
             starts[size_t(i)]=calendar?first+uint32_t(i):today>=uint32_t(slots-1-i)?today-uint32_t(slots-1-i):0;
             ends[size_t(i)]=starts[size_t(i)]+1;
-            time_t t=time_t(uint64_t(starts[size_t(i)])*86400);struct tm d={};char label[16];
-            if(gmtime_r(&t,&d)){strftime(label,sizeof(label),p==UsagePeriod::Days7?"%a":"%d",&d);b.label=calendar?std::to_string(d.tm_mday):label;}
+            time_t t=time_t(uint64_t(starts[size_t(i)])*86400);struct tm d={};
+            static const char *weekdays[]={"周日","周一","周二","周三","周四","周五","周六"};
+            if(gmtime_r(&t,&d))b.label=p==UsagePeriod::Days7?weekdays[d.tm_wday]:std::to_string(d.tm_mday);
             b.current=starts[size_t(i)]==today;
         }
         b.future=starts[size_t(i)]>today;

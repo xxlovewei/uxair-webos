@@ -32,15 +32,15 @@ struct HistoryRenderTest {
         assert(shell.small_&&shell.font_&&shell.large_);
     }
     static void about(Shell& shell,SDL_Surface *surface) {
-        int tw=0;TTF_SizeUTF8(shell.font_,"Matej Skuhala (@depius)",&tw,nullptr);assert(tw<=(1920-512)*30/100);
+        int tw=0;TTF_SizeUTF8(shell.font_,"韦同学（@Wilson）",&tw,nullptr);assert(tw<=(1920-512)*30/100);
         std::vector<UiRow> rows;
-        rows.emplace_back("UxAir","1.2.0 Dev","AirPlay Receiver for webOS",false);
-        rows.emplace_back("Developer","Matej Skuhala (@depius)","Based on UxPlay by FDH2; uxplay-webOS by @danlflh",false);
-        rows.emplace_back("License","GPL-3.0-or-later","See bundled license and third-party notices",false);
-        rows.emplace_back("Enjoying UxAir? Buy me a coffee","","Support development · UxAir is free and open source");
+        rows.emplace_back("UxAir","1.2.1 Dev","适用于 webOS 的 AirPlay 接收器",false);
+        rows.emplace_back("开发者","韦同学（@Wilson）","原作者 Matej Skuhala（@depius），基于 UxPlay（FDH2）和 uxplay-webOS（@danlflh）",false);
+        rows.emplace_back("许可证","GPL-3.0-or-later","请查阅随应用附带的许可证和第三方声明",false);
+        rows.emplace_back("请原作者喝杯咖啡","","支持原项目开发 · UxAir 免费且开源");
         SDL_Surface *icon=SDL_LoadBMP("assets/bmc-icon.bmp");assert(icon);
         shell.donation_icon_=SDL_CreateTextureFromSurface(shell.renderer,icon);SDL_FreeSurface(icon);assert(shell.donation_icon_);
-        shell.page(UiPage::System,"",rows,3,"Left/Right sections");
+        shell.page(UiPage::System,"",rows,3,"左右切换栏目");
         assert(SDL_SaveBMP(surface,"build/tests/history-about.bmp")==0);
     }
     static void render(Shell& shell,SDL_Surface *surface,bool empty,uint32_t today=20747) {
@@ -48,22 +48,23 @@ struct HistoryRenderTest {
         if(!empty){DailyUsage d;d.utc_day=20747;d.mirror_ms=100000;d.audio_ms=51000;stats.daily.push_back(d);}
         auto days=summarize_usage(stats,UsagePeriod::ThisMonth,today);
         auto months=summarize_usage(stats,UsagePeriod::ThisYear,today);
-        assert(days.title=="This month — October 2026");
+        assert(days.title=="本月 · 2026 年 10 月");
         UiHistoryData data;data.daily_title=days.title;data.monthly_title=months.title;
         data.daily_bars=days.bars;data.monthly_bars=months.bars;
-        data.summary=empty?"0 completed":"5 completed";data.total_time="2 min 31 s";data.average="30 s";
-        data.mirror_time="1 min 40 s";data.music_time="51 s";data.mirror_percent=empty?0:66;data.audio_percent=empty?0:34;
-        data.storage="History storage 1 KB | 5/100 sessions | 365d";
+        data.summary=empty?"0 次":"5 次";data.total_time="2 分 31 秒";data.average="30 秒";
+        data.mirror_time="1 分 40 秒";data.music_time="51 秒";data.mirror_percent=empty?0:66;data.audio_percent=empty?0:34;
+        data.storage="历史占用 1 KB · 5/100 次会话 · 保留 365 天";
         std::vector<UiRow> rows;
-        if(!empty)for(int i=0;i<5;++i)rows.emplace_back("2026-10-21 12:30","30 s","Mirror / HEVC / 3840x2160");
-        rows.emplace_back("Reset history","","Reset saved usage history");
-        SDL_Rect previous={0,0,1920,1080};SDL_RenderSetClipRect(shell.renderer,&previous);
-        shell.page(UiPage::History,"",rows,empty?0:2,"Left/Right sections",nullptr,"",false,&data);
+        if(!empty)for(int i=0;i<5;++i)rows.emplace_back("2026-10-21 12:30","30 秒","屏幕镜像 / HEVC / 3840x2160");
+        rows.emplace_back("清空历史记录","","永久删除已保存的使用统计");
+        SDL_Rect previous={0,0,1920,1080};SDL_RenderSetClipRect(shell.renderer,empty?nullptr:&previous);
+        shell.page(UiPage::History,"",rows,empty?0:2,"左右切换栏目",nullptr,"",false,&data);
         SDL_Rect restored;SDL_RenderGetClipRect(shell.renderer,&restored);
-        assert(SDL_RenderIsClipEnabled(shell.renderer)&&restored.w==1920&&restored.h==1080);
+        assert(empty?SDL_RenderIsClipEnabled(shell.renderer)==SDL_FALSE:
+                     SDL_RenderIsClipEnabled(shell.renderer)&&restored.w==1920&&restored.h==1080);
         const auto layout=history_ui_layout(1920,1080);
         assert(layout.list_y+5*layout.row_h<layout.reset_y-4);
-        int tw=0;TTF_SizeUTF8(shell.small_,"UTC · Blue label: current · * Partial history · — Unavailable · • Known zero · Blank: future",&tw,nullptr);
+        int tw=0;TTF_SizeUTF8(shell.small_,"UTC · 蓝色：当前 · * 部分缺失 · 短线：无记录 · 圆点：零时长 · 空白：未来",&tw,nullptr);
         assert(tw<=layout.content_width);
         // Actual SDL pixels: no stacked-bar colors are allowed in either chart header.
         const int plot_top=layout.chart_y+TTF_FontHeight(shell.small_)+26;

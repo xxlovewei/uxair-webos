@@ -10,5 +10,5 @@ assert 'open_failure_=MediaOpenFailure::StarfishLoad;close(); return false;' in 
 assert 'if (api_) {' in media and 'if (acb_) {' in media
 assert 'auto report_media_start_failure=' in main
 assert 'media_open_failure_message(failure)' in main
-assert 'Settings remain available; reconnect to retry.' in main
+assert '可调整设置并重新连接。' in main
 print('PASS: failed media startup is cleaned up and surfaced without terminating the SDL loop')

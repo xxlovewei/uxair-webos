@@ -91,7 +91,7 @@ struct Receiver {
     VideoTiming video_timing;
     DurationWindow ingress_to_queue, ingress_copy, queue_lock_wait, queue_pop;
     DurationWindow video_queue_residence, audio_queue_residence;
-    std::string directory, message="Waiting for a connection", client, client_name;
+    std::string directory, message="等待连接", client, client_name;
     PairingOverlayState pairing;
     std::mutex meta_mutex;   // the sender's callbacks run on its threads
     NowPlaying meta;

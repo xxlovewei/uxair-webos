@@ -42,6 +42,9 @@ def main():
         print(output('-A', file))
         print(output('-d', file))
     dynamic = output('-d',files[0])
+    # 在打包前拦截旧版电视缺少的 SDL 符号，防止历史页闪退回归。
+    if binary == 'uxair' and re.search(r'\bUND\s+SDL_RenderIsClipEnabled\b', output('--dyn-syms', '--wide', files[0])):
+        sys.exit('UxAir imports SDL_RenderIsClipEnabled, which is absent on webOS 3.4')
     marker = ROOT / 'build/media-backend.txt'
     if binary == 'uxair' and marker.exists() and marker.read_text().strip() == 'starfish':
         if 'libNDL' in dynamic or 'libndl' in dynamic:

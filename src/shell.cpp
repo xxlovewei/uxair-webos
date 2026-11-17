@@ -256,12 +256,12 @@ bool Shell::now_playing(const NowPlayingView& v) {
     }
     const int tx=cx+size+90, tw=w-tx-w*8/100;
     int y=cy+size*12/100;
-    const std::string source=plain_punctuation(v.source.empty()?"AirPlay on UxAir":"AirPlay from "+v.source);
+    const std::string source=plain_punctuation(v.source.empty()?"通过 UxAir 播放 AirPlay":"AirPlay 来源："+v.source);
     text_at(fit_text(small_,source,tw),tx,y,tw,small_,dim({150,175,190,255},1));
     y+=TTF_FontLineSkip(small_)+18;
     // The title scrolls when too wide: 3 s at the start, glides left until its
     // end shows, 5 s there, glides back, again.
-    const std::string title=plain_punctuation(v.title.empty()?"Unknown title":v.title);
+    const std::string title=plain_punctuation(v.title.empty()?"未知曲目":v.title);
     if(title!=title_text_) {
         if(title_){SDL_DestroyTexture(title_);title_=nullptr;}
         SDL_Surface *s=TTF_RenderUTF8_Blended(title_font,title.c_str(),uxair_text);
@@ -408,12 +408,12 @@ void Shell::draw_history(const UiHistoryData& data,const std::vector<UiRow>& row
         text_at(value,x+16,y+36,cw-32,font_,uxair_text);
     };
     const int third=(content-card_gap*2)/3;
-    card(panel,top,third,"LIFETIME SESSIONS",data.summary);
-    card(panel+third+card_gap,top,third,"LIFETIME PLAYBACK",data.total_time);
-    card(panel+2*(third+card_gap),top,third,"AVERAGE SESSION",data.average);
+    card(panel,top,third,"累计会话",data.summary);
+    card(panel+third+card_gap,top,third,"累计播放时长",data.total_time);
+    card(panel+2*(third+card_gap),top,third,"平均会话时长",data.average);
     const int second_y=top+86;
-    card(panel,second_y,content/2-card_gap/2,"LAST 30 DAYS - SCREEN MIRRORING",data.mirror_time);
-    card(panel+content/2+card_gap/2,second_y,content/2-card_gap/2,"LAST 30 DAYS - AIRPLAY MUSIC",data.music_time);
+    card(panel,second_y,content/2-card_gap/2,"最近 30 天 · 屏幕镜像",data.mirror_time);
+    card(panel+content/2+card_gap/2,second_y,content/2-card_gap/2,"最近 30 天 · AirPlay 音乐",data.music_time);
     auto draw_chart=[&](int x,int y,int cw,int ch,const std::vector<UiHistoryBar>& bars,const std::string& title,bool monthly) {
         fill_round_rect(renderer,{x,y,cw,ch},12,{25,39,61,255});
         uint64_t maximum=0;
@@ -439,8 +439,10 @@ void Shell::draw_history(const UiHistoryData& data,const std::vector<UiRow>& row
             text_at(usage_axis_label(tick==2?axis:tick?axis/2:0,unit),x+padding,gy-text_h/2,axis_width,small_,{157,178,194,255});
         }
         const int n=int(bars.size());
-        SDL_Rect previous_clip;SDL_RenderGetClipRect(renderer,&previous_clip);
-        const bool had_clip=SDL_RenderIsClipEnabled(renderer)==SDL_TRUE;
+        // webOS 3.4 的 SDL 缺少 SDL_RenderIsClipEnabled，直接调用会让应用退出。
+        // 用已有的裁剪矩形判断是否需要恢复裁剪，避免影响后续标签和列表的绘制。
+        SDL_Rect previous_clip={};SDL_RenderGetClipRect(renderer,&previous_clip);
+        const bool had_clip=!SDL_RectEmpty(&previous_clip);
         const SDL_Rect plot={px,py,pw,plot_h};SDL_RenderSetClipRect(renderer,&plot);
         for(int i=0;i<n;++i) {
             const auto& b=bars[size_t(i)];
@@ -477,12 +479,12 @@ void Shell::draw_history(const UiHistoryData& data,const std::vector<UiRow>& row
     draw_chart(panel,chart_y,layout.daily_width,chart_h,data.daily_bars,data.daily_title,false);
     const int month_x=panel+layout.daily_width+layout.chart_gap;
     draw_chart(month_x,chart_y,content-layout.daily_width-layout.chart_gap,chart_h,data.monthly_bars,data.monthly_title,true);
-    text_at("UTC · Blue label: current · * Partial history · — Unavailable · • Known zero · Blank: future",panel,chart_y+chart_h+7,content,small_,{157,178,194,255});
+    text_at("UTC · 蓝色：当前 · * 部分缺失 · 短线：无记录 · 圆点：零时长 · 空白：未来",panel,chart_y+chart_h+7,content,small_,{157,178,194,255});
     if(data.mirror_percent+data.audio_percent) {
-        text_at("Last 30 days - playback distribution",panel,layout.distribution_y,content/2,small_,uxair_text);
-        text_at("Screen mirroring  "+std::to_string(data.mirror_percent)+"%",panel+content/2,layout.distribution_y,content/4,small_,uxair_accent);
-        text_at("AirPlay music  "+std::to_string(data.audio_percent)+"%",panel+content*3/4,layout.distribution_y,content/4,small_,{145,211,181,255});
-    } else text_at("No playback yet",panel,layout.distribution_y,content,small_,{174,194,207,255});
+        text_at("最近 30 天 · 播放时长占比",panel,layout.distribution_y,content/2,small_,uxair_text);
+        text_at("屏幕镜像 "+std::to_string(data.mirror_percent)+"%",panel+content/2,layout.distribution_y,content/4,small_,uxair_accent);
+        text_at("AirPlay 音乐 "+std::to_string(data.audio_percent)+"%",panel+content*3/4,layout.distribution_y,content/4,small_,{145,211,181,255});
+    } else text_at("暂无播放",panel,layout.distribution_y,content,small_,{174,194,207,255});
     const int dist_h=20;
     SDL_Rect track={panel,layout.distribution_bar_y,content,dist_h};SDL_SetRenderDrawColor(renderer,47,65,85,255);SDL_RenderFillRect(renderer,&track);
     const unsigned total_pct=data.mirror_percent+data.audio_percent;
@@ -490,21 +492,21 @@ void Shell::draw_history(const UiHistoryData& data,const std::vector<UiRow>& row
     SDL_SetRenderDrawColor(renderer,101,185,246,255);SDL_Rect m={panel,layout.distribution_bar_y,mw,dist_h};if(mw)SDL_RenderFillRect(renderer,&m);
     SDL_SetRenderDrawColor(renderer,104,194,157,255);SDL_Rect a={panel+mw,layout.distribution_bar_y,content-mw,dist_h};if(total_pct&&a.w)SDL_RenderFillRect(renderer,&a);
     const int list_y=layout.list_y,row_h=layout.row_h;
-    text_at("Recent sessions",panel,layout.heading_y,content/2,font_,uxair_text);
-    text_at("STARTED (UTC)",panel+10,layout.heading_y+36,content*27/100,small_,{157,184,201,255});
-    text_at("DURATION",panel+content*30/100,layout.heading_y+36,content*15/100,small_,{157,184,201,255});
-    text_at("SESSION",panel+content*48/100,layout.heading_y+36,content*50/100,small_,{157,184,201,255});
+    text_at("最近会话",panel,layout.heading_y,content/2,font_,uxair_text);
+    text_at("开始时间（UTC）",panel+10,layout.heading_y+36,content*27/100,small_,{157,184,201,255});
+    text_at("时长",panel+content*30/100,layout.heading_y+36,content*15/100,small_,{157,184,201,255});
+    text_at("会话类型",panel+content*48/100,layout.heading_y+36,content*50/100,small_,{157,184,201,255});
     const int count=std::max(0,int(rows.size())-1),visible=std::min(5,count),first=visible_row_first(std::max(0,selected),count,visible);
     for(int i=0;i<visible;++i){int idx=first+i,y=list_y+i*row_h;
         if(selected==idx){SDL_Rect f={panel-5,y-3,content,row_h-1};SDL_SetRenderDrawColor(renderer,uxair_surface.r,uxair_surface.g,uxair_surface.b,255);SDL_RenderFillRect(renderer,&f);}
         const auto& r=rows[size_t(idx)];text_at(r.label,panel+10,y+4,content*27/100,small_,uxair_text);text_at(r.value,panel+content*30/100,y+4,content*15/100,small_,uxair_accent);text_at(r.note,panel+content*48/100,y+4,content*50/100,small_,{174,194,207,255});
     }
-    if(count==0)text_at("No playback history yet.",panel+10,list_y+5,content-20,font_,{174,194,207,255});
+    if(count==0)text_at("暂无播放记录",panel+10,list_y+5,content-20,font_,{174,194,207,255});
     int reset_index=int(rows.size())-1,reset_y=layout.reset_y;
     SDL_Rect reset={layout.reset_x,reset_y-4,layout.reset_w,layout.reset_h};if(selected==reset_index|| (pointer_valid_&&history_reset_hit(layout,pointer_x_,pointer_y_))){fill_round_rect(renderer,reset,8,{48,78,110,255});}
     const SDL_Color reset_border=selected==reset_index?uxair_accent:SDL_Color{90,112,132,255};
     SDL_SetRenderDrawColor(renderer,reset_border.r,reset_border.g,reset_border.b,255);SDL_RenderDrawRect(renderer,&reset);
-    text_at("Reset history",panel+10,reset_y,160,small_,selected==reset_index?uxair_accent:uxair_text);
+    text_at("清空历史记录",panel+10,reset_y,160,small_,selected==reset_index?uxair_accent:uxair_text);
     text_at(data.storage,panel+200,reset_y,w-panel-250,small_,{174,194,207,255});
 }
 void Shell::page(UiPage page_id,const std::string& subtitle,const std::vector<UiRow>& rows,int selected,const std::string& footer,const UiDialog *dialog,const std::string& pin,bool donation_open,const UiHistoryData *history) {
@@ -516,13 +518,12 @@ void Shell::page(UiPage page_id,const std::string& subtitle,const std::vector<Ui
     SDL_SetRenderDrawColor(renderer,uxair_navy.r,uxair_navy.g,uxair_navy.b,255);SDL_RenderFillRect(renderer,&side);
     SDL_Rect accent={0,0,w,7};
     SDL_SetRenderDrawColor(renderer,uxair_accent.r,uxair_accent.g,uxair_accent.b,255);SDL_RenderFillRect(renderer,&accent);
-    const char *categories[]={"Video","Audio","History","Diagnostics","About"};
-    const char *titles[]={"Video","Audio","History","Diagnostics","About"};
+    const char *categories[]={"视频","音频","历史记录","诊断","关于"};
     int index=int(page_id);if(index<0||index>4)index=0;
     int category=index;
     text_at("UxAir",w/28,h/18,sidebar-40,large_,uxair_accent);
-    text_at("AirPlay Receiver",w/28,h/8,sidebar-40,small_,{154,185,202,255});
-    text_at(titles[index],panel,h/20,w-panel-35,large_,{239,247,249,255});
+    text_at("AirPlay 接收器",w/28,h/8,sidebar-40,small_,{154,185,202,255});
+    text_at(categories[index],panel,h/20,w-panel-35,large_,{239,247,249,255});
     if(page_id!=UiPage::History&&page_id!=UiPage::System)
         text_at(subtitle,panel,h/7,w-panel-35,font_,{154,185,202,255});
     const int top=h/4;
@@ -591,7 +592,7 @@ void Shell::page(UiPage page_id,const std::string& subtitle,const std::vector<Ui
                 SDL_SetRenderDrawColor(renderer,uxair_surface.r,uxair_surface.g,uxair_surface.b,255);SDL_RenderFillRect(renderer,&selected_row);
             }
             text_at(dialog->choices[option],left+42,y+12,box_w-120,font_,option==dialog->selected?uxair_text:SDL_Color{184,205,216,255});
-            if(option==dialog->current)text_at("✓",left+box_w-94,y+12,60,small_,uxair_accent);
+            if(option==dialog->current)text_at("当前",left+box_w-94,y+12,60,small_,uxair_accent);
         }
     }
     if(!pin.empty())draw_pairing_modal(pin,w,h);
@@ -621,19 +622,19 @@ void Shell::draw_donation_modal(int w,int h) {
     int panel_w=std::min(w-40,std::max(560,qr_size+120));
     SDL_Rect panel={(w-panel_w)/2,top,panel_w,qr_size+150};
     fill_round_rect(renderer,panel,26,{29,45,71,255});
-    const std::string heading="Enjoying the app? Buy me a coffee.";
+    const std::string heading="请原作者喝杯咖啡";
     int heading_width=0;TTF_SizeUTF8(font_,heading.c_str(),&heading_width,nullptr);
     text_at(heading,(w-heading_width)/2,top+24,w-80,font_,uxair_text);
     if(donation_qr_) {
         SDL_Rect qr={(w-qr_size)/2,top+70,qr_size,qr_size};
         SDL_RenderCopy(renderer,donation_qr_,nullptr,&qr);
     } else {
-        text("QR image unavailable",top+qr_size/2,large_,{255,255,255,255});
+        text("二维码不可用",top+qr_size/2,large_,{255,255,255,255});
     }
     const std::string url="buymeacoffee.com/depius";
     int url_width=0;TTF_SizeUTF8(font_,url.c_str(),&url_width,nullptr);
     text_at(url,(w-url_width)/2,top+qr_size+82,w-60,font_,uxair_accent);
-    const std::string hint="Back to return";
+    const std::string hint="按返回键关闭";
     int hint_width=0;TTF_SizeUTF8(small_,hint.c_str(),&hint_width,nullptr);
     text_at(hint,(w-hint_width)/2,h-48,w-40,small_,{160,184,198,255});
 }
@@ -643,10 +644,10 @@ void Shell::draw_pairing_modal(const std::string& pin,int w,int h) {
     int box_w=std::min(w*82/100,1120),box_h=std::min(h*62/100,500);
     SDL_Rect panel={(w-box_w)/2,(h-box_h)/2,box_w,box_h};
     fill_round_rect(renderer,panel,28,{29,45,71,255});
-    const std::string heading="AirPlay Pairing";
+    const std::string heading="AirPlay 配对";
     int heading_width=0;TTF_SizeUTF8(large_,heading.c_str(),&heading_width,nullptr);
     text_at(heading,panel.x+(box_w-heading_width)/2,panel.y+box_h/8,box_w-64,large_,uxair_accent);
-    const std::string instruction="Enter this code on your Apple device";
+    const std::string instruction="请在 Apple 设备上输入此验证码";
     int instruction_width=0;TTF_SizeUTF8(font_,instruction.c_str(),&instruction_width,nullptr);
     text_at(instruction,panel.x+(box_w-instruction_width)/2,panel.y+box_h*37/100,box_w-64,font_,{225,237,243,255});
     std::string spaced;
@@ -656,7 +657,7 @@ void Shell::draw_pairing_modal(const std::string& pin,int w,int h) {
     if(pin_width>box_w*84/100) {display_pin_font=pin_font_small_;TTF_SizeUTF8(display_pin_font,spaced.c_str(),&pin_width,nullptr);}
     const int pin_x=panel.x+(box_w-pin_width)/2;
     text_at(spaced,pin_x,panel.y+box_h*52/100,box_w-64,display_pin_font,{255,255,255,255});
-    const std::string hint="Back to cancel pairing";
+    const std::string hint="按返回键取消配对";
     int hint_width=0;TTF_SizeUTF8(small_,hint.c_str(),&hint_width,nullptr);
     text_at(hint,panel.x+(box_w-hint_width)/2,panel.y+box_h-50,box_w-64,small_,{190,208,225,255});
 }
@@ -666,10 +667,10 @@ void Shell::screen(const std::string& status,const std::string& pin,int delay) {
     text(UXAIR_DISPLAY_NAME,h/6,large_,uxair_accent);
     text(status,h/2-60,font_,uxair_text);
     if(!pin.empty()) text(pin,h/2+10,large_,uxair_text);
-    else text(std::string("Open Screen Mirroring and select ")+UXAIR_DISPLAY_NAME,h/2+20,font_,{178,194,207,255});
-    char sync[160];snprintf(sync,sizeof(sync),"◀ ▶  Audio delay: %+d ms  ·  Adjust before connecting",delay);
+    else text(std::string("打开「屏幕镜像」，选择 ")+UXAIR_DISPLAY_NAME,h/2+20,font_,{178,194,207,255});
+    char sync[160];snprintf(sync,sizeof(sync),"左右键调整音频延迟：%+d 毫秒 · 请在连接前设置",delay);
     text(sync,h-135,font_,{145,167,185,255});
-    text("Same Wi-Fi network  ·  Quality in Settings  ·  Back to exit",h-80,font_,{145,167,185,255});
+    text("请连接同一 Wi-Fi · 在设置中调整画质 · 按返回键退出",h-80,font_,{145,167,185,255});
     SDL_RenderPresent(renderer);
 }
 Shell::~Shell() {if(cover_)SDL_DestroyTexture(cover_);if(title_)SDL_DestroyTexture(title_);if(np_title_)TTF_CloseFont(np_title_);if(np_artist_)TTF_CloseFont(np_artist_);if(np_album_)TTF_CloseFont(np_album_);if(donation_icon_)SDL_DestroyTexture(donation_icon_);if(donation_qr_)SDL_DestroyTexture(donation_qr_);if(font_)TTF_CloseFont(font_);if(large_)TTF_CloseFont(large_);if(small_)TTF_CloseFont(small_);if(pin_font_)TTF_CloseFont(pin_font_);if(pin_font_small_)TTF_CloseFont(pin_font_small_);TTF_Quit();if(renderer) SDL_DestroyRenderer(renderer); if(window) SDL_DestroyWindow(window); SDL_Quit(); }

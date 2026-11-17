@@ -16,19 +16,19 @@ int main() {
     const std::string root(dir),path=root+"/usage-v1";
     UsageStats empty;assert(!load_usage_stats(path,empty)&&!empty.storage_corrupt);
     assert(summarize_usage(empty,UsagePeriod::Days7,20000).bars.size()==7);
-    assert(usage_axis_label(12500)=="12.5 s");
-    assert(usage_axis_label(200)=="0.2 s");
-    assert(usage_axis_label(900000)=="15 min");
-    assert(usage_axis_label(5400000)=="1.5 h");
+    assert(usage_axis_label(12500)=="12.5 秒");
+    assert(usage_axis_label(200)=="0.2 秒");
+    assert(usage_axis_label(900000)=="15 分钟");
+    assert(usage_axis_label(5400000)=="1.5 小时");
     assert(usage_mirror_percent(0,0)==0);
     assert(usage_mirror_percent(1,2)==33&&usage_mirror_percent(2,1)==67);
     const unsigned mirror_pct=usage_mirror_percent(1234567,7654321);
     assert(mirror_pct+(100-mirror_pct)==100);
 
-    assert(usage_axis_label(0)=="0 s");
-    assert(usage_axis_label(60000)=="1 min");
-    assert(usage_axis_label(3600000)=="1 h");
-    assert(usage_axis_label(0,60000)=="0 min");
+    assert(usage_axis_label(0)=="0 秒");
+    assert(usage_axis_label(60000)=="1 分钟");
+    assert(usage_axis_label(3600000)=="1 小时");
+    assert(usage_axis_label(0,60000)=="0 分钟");
     // Every scale covers its data, including former floor-rounding failures.
     for(uint64_t value:{0ULL,1ULL,1000ULL,10000ULL,59000ULL,60000ULL,90000ULL,151000ULL,
                        1800000ULL,10800000ULL,99999ULL,100000ULL,100001ULL,199999ULL,
@@ -50,16 +50,16 @@ int main() {
     // Future stored records are ignored, including clock-skewed data in the current month.
     sample.utc_day=day(2026,10,22);sample.mirror_ms=999999;calendar.daily.push_back(sample);
     auto october=summarize_usage(calendar,UsagePeriod::ThisMonth,oct21);
-    assert(october.title=="This month — October 2026"&&october.bars.size()==31);
+    assert(october.title=="本月 · 2026 年 10 月"&&october.bars.size()==31);
     assert(october.bars.front().label=="1"&&october.bars.back().label=="31");
     assert(october.bars[20].current&&october.bars[20].mirror_ms==151000);
     assert(!october.bars[8].available&&!october.bars[8].future);
     assert(october.bars[9].available&&october.bars[9].mirror_ms==0);
     assert(october.bars[21].future&&!october.bars[21].available&&october.bars[21].mirror_ms==0);
     auto annual=summarize_usage(calendar,UsagePeriod::ThisYear,oct21);
-    assert(annual.title=="This year — 2026"&&annual.bars.size()==12);
-    assert(annual.bars[0].label=="Jan"&&annual.bars[11].label=="Dec");
-    assert(annual.bars[9].label=="Oct"&&annual.bars[9].current&&annual.bars[9].partial&&annual.bars[9].mirror_ms==151000);
+    assert(annual.title=="本年 · 2026 年"&&annual.bars.size()==12);
+    assert(annual.bars[0].label=="1月"&&annual.bars[11].label=="12月");
+    assert(annual.bars[9].label=="10月"&&annual.bars[9].current&&annual.bars[9].partial&&annual.bars[9].mirror_ms==151000);
     assert(!annual.bars[8].available&&!annual.bars[8].future&&annual.bars[10].future);
     calendar.daily_from_day=day(2026,1,1);
     annual=summarize_usage(calendar,UsagePeriod::ThisYear,oct21);
@@ -93,8 +93,8 @@ int main() {
     UsageSummary boundary=summarize_usage(cross,UsagePeriod::Months12,usage_utc_day(1704067200));
     bool saw_dec=false,saw_jan=false;
     for(const auto& bar:boundary.bars) {
-        if(bar.label=="Dec") {saw_dec=true;assert(bar.available&&bar.partial&&bar.mirror_ms==10000);}
-        if(bar.label=="Jan") {saw_jan=true;assert(bar.available&&bar.partial&&bar.mirror_ms==10000);}
+        if(bar.label=="12月") {saw_dec=true;assert(bar.available&&bar.partial&&bar.mirror_ms==10000);}
+        if(bar.label=="1月") {saw_jan=true;assert(bar.available&&bar.partial&&bar.mirror_ms==10000);}
     }
     assert(saw_dec&&saw_jan);
 
@@ -119,8 +119,8 @@ int main() {
     UsageStats leap;leap.daily_from_day=leap_day;
     DailyUsage leap_record;leap_record.utc_day=leap_day;leap_record.mirror_ms=86400000;leap.daily.push_back(leap_record);
     UsageSummary leap_month=summarize_usage(leap,UsagePeriod::Months12,usage_utc_day(1709251200)); // 2024-03-01
-    bool found_february=false;for(const auto& bar:leap_month.bars)if(bar.label=="Feb"){found_february=true;assert(bar.available&&bar.partial&&bar.mirror_ms==86400000);}
-    assert(found_february&&leap_month.bars.back().label=="Mar");
+    bool found_february=false;for(const auto& bar:leap_month.bars)if(bar.label=="2月"){found_february=true;assert(bar.available&&bar.partial&&bar.mirror_ms==86400000);}
+    assert(found_february&&leap_month.bars.back().label=="3月");
     UsageSummary leap_week=summarize_usage(leap,UsagePeriod::Days7,usage_utc_day(1709251200));
     assert(leap_week.bars.back().available&&leap_week.bars.back().mirror_ms==0); // zero-use current day is distinct from unavailable dates
 

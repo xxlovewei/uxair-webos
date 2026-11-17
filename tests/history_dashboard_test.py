@@ -11,7 +11,7 @@ assert "data.daily_title,false" in shell
 assert "data.monthly_title,true" in shell
 assert "data.daily_bars" in shell and "data.monthly_bars" in shell
 assert 'if(b.partial)text_at("*"' in shell
-assert '"STARTED (UTC)"' in shell and '"DURATION"' in shell and '"SESSION"' in shell
+assert '"开始时间（UTC）"' in shell and '"时长"' in shell and '"会话类型"' in shell
 assert "page_id!=UiPage::History&&page_id!=UiPage::System" in shell
 assert "TTF_SizeUTF8(font_,rows[i].label.c_str()" in shell
 assert "TTF_SizeUTF8(small_,rows[i].note.c_str()" in shell
@@ -22,5 +22,5 @@ assert 'UsagePeriod::ThisMonth' in main and 'UsagePeriod::ThisYear' in main
 assert 'history_day' in main
 assert 'SDL_RenderSetClipRect(renderer,&plot)' in shell
 assert 'SDL_RenderSetClipRect(renderer,had_clip?&previous_clip:nullptr)' in shell
-assert 'Matej Skuhala (@depius)' in main and 'Based on UxPlay by FDH2; uxplay-webOS by @danlflh' in main
+assert 'UiRow("开发者","韦同学（@Wilson）"' in main
 print("PASS: calendar charts, partial-month marks, stable columns and About icon sizing")
